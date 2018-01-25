@@ -1,4 +1,4 @@
-package java.entities;
+package com.entities;
 
 public enum CardType {
     BOMB,

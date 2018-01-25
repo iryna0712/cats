@@ -1,6 +1,7 @@
-package java.game;
+package com.game;
 
-import java.entities.*;
+import com.entities.*;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
@@ -24,9 +25,12 @@ public class GameManager {
             players.add(new Player("regular_player"));
         }
 
-        //create and fill deck
+        //create, fill deck and shuffle it
         DeckFiller filler = new DeckFiller();
         deck = new Deck(filler);
+        deck.shuffle();
+
+        logger.severe("" + deck);
 
         //for each player give 1 protection card and 3 usual cards
         for (Player player : players) {
@@ -37,8 +41,12 @@ public class GameManager {
             }
         }
 
-        for (Player player : players) logger.finest("" + player);
+        for (Player player : players) logger.severe("" + player);
 
+        while (!deck.isEmpty()) {
+            Card card = deck.popTopCard();
+            logger.severe("Card popped: " + card);
+        }
     }
 
     private void checkCardFromDeckAndGiveToPlayer(Player player) {
