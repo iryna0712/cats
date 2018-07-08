@@ -1,14 +1,14 @@
 package com.entities;
 
-public class Card {
+public class Card implements Comparable<Card> {
 
-    CardType type;
+    private CardType type;
 
     public Card(CardType type) {
         this.type = type;
     }
 
-    public CardType  getType() {
+    public CardType getType() {
         return type;
     }
 
@@ -16,5 +16,8 @@ public class Card {
         return type.toString();
     }
 
-
+    @Override
+    public int compareTo(Card o) {
+        return Integer.compare(getType().ordinal(), o.getType().ordinal());
+    }
 }

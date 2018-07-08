@@ -1,5 +1,7 @@
 package com.entities;
 
+import com.interfaces.DeckFiller;
+
 import java.util.Collections;
 import java.util.LinkedList;
 

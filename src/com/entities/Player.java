@@ -3,25 +3,42 @@ package com.entities;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.atomic.LongAdder;
 
 public class Player {
 
-    private static LongAdder counter = new LongAdder();
+    //private static LongAdder counter = new LongAdder();
 
-    //TODO: do we need it?
-    private short id;
+    private int clientId;
     private String name;
+    private boolean active;
+    private int num;
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
 
     private List<Card> cards = new ArrayList<>();
 
-
-    public Player(String name) {
+    public Player(int clientId, String name) {
         this.name = name;
+        this.clientId = clientId;
+        //counter.increment();
+    }
 
-        //TODO:is this atomic?
-        id = counter.shortValue();
-        counter.increment();
+    public int getNum() {
+        return num;
+    }
+
+    public void setNum(int num) {
+        this.num = num;
+    }
+
+    public int getClientId() {
+        return clientId;
     }
 
     public List<Card> getCards() {
@@ -33,6 +50,12 @@ public class Player {
         cards.add(card);
     }
 
+    public boolean removeCard(Card card) {
+        Collections.sort(cards);
+        int result = Collections.binarySearch(cards,card);
+        return (result >= 0);
+    }
+
     //maybe not needed
     public void onMakeMove() {
 
@@ -40,9 +63,8 @@ public class Player {
 
     @Override
     public String toString() {
-        StringBuilder builder = new StringBuilder(255);
+        StringBuilder builder = new StringBuilder(255 );
         builder.append("Player:\n" +
-                "id = " + id + "\n" +
                 "name = " + name + "\n" +
                 "cards = {");
         for (Card card : cards) {

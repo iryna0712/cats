@@ -1,8 +1,11 @@
 package com.game;
 
+import com.entities.Card;
+import com.entities.CardType;
+
 import java.io.IOException;
+import java.net.Socket;
 import java.util.logging.FileHandler;
-import java.util.logging.Handler;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
@@ -12,7 +15,11 @@ import java.util.logging.Level;
 //
 public class Application {
 
-    public static void main(String[] args) {
+
+    static Client client1;
+    static Client client2;
+
+    public static void main(String[] args) throws IOException {
 
         try {
         FileHandler fileHandler = new FileHandler("log.txt");
@@ -22,8 +29,22 @@ public class Application {
 
         }
 
-        GameManager manager = new GameManager();
 
+        gameManager = new GameManager();
+
+        ConnectionManager connectionManager = new ConnectionManager(2, gameManager);
+        connectionManager.setListener(gameManager);
+
+//        client1 = new Client(new Socket());
+//        client2 = new Client(new Socket());
+//
+//        connectionManager.getListener().onClientConnected(client1);
+//        connectionManager.getListener().onClientConnected(client2);
+        connectionManager.openForConnectionsAndWait();
     }
+
+    private static GameManager gameManager;
+
+
 
 }
