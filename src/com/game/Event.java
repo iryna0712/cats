@@ -1,7 +1,6 @@
 package com.game;
 
 import com.entities.Card;
-import com.entities.CardType;
 import com.entities.Deck;
 import com.entities.Player;
 

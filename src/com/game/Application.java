@@ -1,13 +1,9 @@
 package com.game;
 
-import com.entities.Card;
-import com.entities.CardType;
-
 import java.io.IOException;
-import java.net.Socket;
 import java.util.logging.FileHandler;
-import java.util.logging.Logger;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
 // versions.
@@ -15,9 +11,9 @@ import java.util.logging.Level;
 //
 public class Application {
 
-
     static Client client1;
     static Client client2;
+    static Client client3;
 
     public static void main(String[] args) throws IOException {
 
@@ -35,14 +31,25 @@ public class Application {
         ConnectionManager connectionManager = new ConnectionManager(2, gameManager);
         connectionManager.setListener(gameManager);
 
-//        client1 = new Client(new Socket());
-//        client2 = new Client(new Socket());
-//
-//        connectionManager.getListener().onClientConnected(client1);
-//        connectionManager.getListener().onClientConnected(client2);
-        connectionManager.openForConnectionsAndWait();
+        boolean test = true;
+        if (test) {
+            client1 = new Client();
+            client2 = new Client();
+            client3 = new Client();
+
+            connectionManager.getListener().onClientConnected(client1);
+            connectionManager.getListener().onClientConnected(client2);
+            connectionManager.getListener().onClientConnected(client3);
+
+            client1.receiveMessage("{\"event\":\"connect\",\"name\":\"player1\"}");
+            client2.receiveMessage("{\"event\":\"connect\",\"name\":\"player2\"}");
+            client3.receiveMessage("{\"event\":\"connect\",\"name\":\"player3\"}");
+        } else {
+            connectionManager.openForConnectionsAndWait();
+        }
     }
 
+    //TODO: no need for this var? only local
     private static GameManager gameManager;
 
 

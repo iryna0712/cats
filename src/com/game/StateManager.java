@@ -4,11 +4,15 @@ public class StateManager {
 
     private GameState currentState;
     private int turn;
-    private boolean isFirstMove = true;
+    private TurnChangeListener turnChangeListener;
 
     public StateManager() {
         currentState = GameState.GAME_START;
         turn = 0;
+    }
+
+    public void setTurnChangeListener(TurnChangeListener turnChangeListener) {
+        this.turnChangeListener = turnChangeListener;
     }
 
     enum GameState {
@@ -53,12 +57,19 @@ public class StateManager {
         return turn;
     }
 
+    //TODO: skip move = change turn?
     public void toggleTurn() {
         switch (turn) {
             case 0: turn = 1; break;
             case 1: turn = 2; break;
-            case 2: turn = 1; break;
+            case 2: turn = 3; break;
+            case 3: turn = 1; break;
             default: break;
         }
+
+        if (turnChangeListener != null) {
+            turnChangeListener.onTurnChanged(turn);
+        }
+
     }
 }

@@ -1,8 +1,5 @@
 package com.events;
 
-import com.game.Event;
-import com.game.EventJSON;
-
 public class NextTurnEventJSON extends EventJSON {
 
     private short id;

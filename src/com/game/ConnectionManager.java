@@ -73,7 +73,8 @@ public class ConnectionManager {
     private class ConnectionExecutor implements Runnable {
         @Override
         public void run() {
-            while (currentNumPlayers.intValue() < maxPlayers) {
+
+                while (currentNumPlayers.intValue() < maxPlayers) {
                 System.out.println("waiting");
                 try {
                     //может ли заблокированный поток вывести из состояния обычное исключение?
@@ -83,6 +84,8 @@ public class ConnectionManager {
                         Client client = new Client(socket);
                         clientsList.add(client);
                         client.start();
+
+                        getListener().onClientConnected(client);
                     } catch (IOException e) {
 
                     }

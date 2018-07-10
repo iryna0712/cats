@@ -1,9 +1,10 @@
 package com.events;
 
 import com.entities.CardType;
-import com.game.EventJSON;
 
-public class ReceiveEventJSON extends EventJSON {
+import java.io.Serializable;
+
+public class ReceiveEventJSON extends EventJSON implements Serializable {
     private CardType card;
 
     public ReceiveEventJSON(CardType card) {

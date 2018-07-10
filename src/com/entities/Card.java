@@ -20,4 +20,11 @@ public class Card implements Comparable<Card> {
     public int compareTo(Card o) {
         return Integer.compare(getType().ordinal(), o.getType().ordinal());
     }
+
+    //TODO: override equals ans hashCode
+    @Override
+    public boolean equals(Object obj) {
+        //TODO: redo
+        return ((Card) obj).getType().equals(this.getType());
+    }
 }

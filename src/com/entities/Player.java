@@ -7,11 +7,21 @@ import java.util.List;
 public class Player {
 
     //private static LongAdder counter = new LongAdder();
-
-    private int clientId;
     private String name;
-    private boolean active;
     private int num;
+    private int clientId;
+
+    private boolean active;
+    private List<Card> cards = new ArrayList<>();
+
+    public Player(int clientId) {
+        this.clientId = clientId;
+        //counter.increment();
+    }
+
+    public void setName(String name) { this.name = name; }
+
+    public String getName() { return name; }
 
     public boolean isActive() {
         return active;
@@ -19,14 +29,6 @@ public class Player {
 
     public void setActive(boolean active) {
         this.active = active;
-    }
-
-    private List<Card> cards = new ArrayList<>();
-
-    public Player(int clientId, String name) {
-        this.name = name;
-        this.clientId = clientId;
-        //counter.increment();
     }
 
     public int getNum() {
@@ -51,14 +53,13 @@ public class Player {
     }
 
     public boolean removeCard(Card card) {
-        Collections.sort(cards);
-        int result = Collections.binarySearch(cards,card);
-        return (result >= 0);
+        //TODO: quicker way to remove?
+        return cards.remove(card);
     }
 
-    //maybe not needed
-    public void onMakeMove() {
-
+    public boolean hasCard(Card card, int amount) {
+        int frequency = Collections.frequency(cards, card);
+        return (frequency == amount);
     }
 
     @Override
@@ -82,10 +83,6 @@ public class Player {
 
     public void shuffleOwnCards() {
         Collections.shuffle(cards);
-    }
-
-    public Card pickOwnCard() {
-        return null;
     }
 
     public Card pickOtherPlayerCard() {

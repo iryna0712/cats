@@ -2,8 +2,8 @@ package com.interfaces;
 
 import com.entities.Card;
 
-import java.util.Collection;
+import java.util.List;
 
 public interface DeckFiller {
-    void fill(Collection<Card> cardsList);
+    void fill(List<Card> cardsList);
 }

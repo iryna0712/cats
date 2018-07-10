@@ -2,7 +2,10 @@ package com.entities;
 
 import com.interfaces.DeckFiller;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 
 
@@ -27,7 +30,8 @@ public class DeckFillerImpl implements DeckFiller {
                 put(CardType.LUMBERJACK, (short)4);
             }});
 
-    public void fill(Collection<Card> cardsList) {
+    //TODO: deck filler should depend on the number of players
+    public void fill(List<Card> cardsList) {
         cardsList.clear();
 
         for (CardType cardType: amountOfCards.keySet()) {
@@ -38,6 +42,7 @@ public class DeckFillerImpl implements DeckFiller {
             cardsList.addAll(Collections.nCopies(numberOfCardsForType,card));
         }
 
+        Collections.shuffle(cardsList);
         logger.severe("Filled card deck " + cardsList);
     }
 
