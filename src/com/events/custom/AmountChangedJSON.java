@@ -1,4 +1,6 @@
-package com.events;
+package com.events.custom;
+
+import com.events.EventJSON;
 
 public class AmountChangedJSON extends EventJSON {
     public AmountChangedJSON(short playerId, int numOfCards) {

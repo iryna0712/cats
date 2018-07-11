@@ -1,8 +1,8 @@
 package com.entities;
 
 import com.events.JSONConvertible;
-import com.events.JSONConvertibleSerializer;
-import com.events.PlaceJSONDeserializer;
+import com.events.serializers.JSONConvertibleSerializer;
+import com.events.serializers.PlaceJSONDeserializer;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.interfaces.DeckFiller;
@@ -12,8 +12,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.logging.Logger;
 
 public class Deck {
+
+    private static final Logger logger = Logger.getLogger(Deck.class.getSimpleName());
 
     private final LinkedList<Card> deck = new LinkedList<>();
 
@@ -56,7 +59,12 @@ public class Deck {
         private int getIndex() {
             return index;
         }
-//
+
+        public void setIndex(int index) {
+            this.index = index;
+        }
+
+        //
 //        @Override
 //        public String toJSONString() {
 //            return toString().toLowerCase();
@@ -97,7 +105,11 @@ public class Deck {
         return deck.poll();
     }
 
-    public Card popTopCard() {
+    public Card popTopCard() throws IllegalStateException{
+        if (deck.size() == 0) {
+            //TODO: add properties file with strings for eceptions and messages
+            throw new IllegalStateException("Something went wrong. Deck is empty. Cannot take card!");
+        }
         return deck.pop();
     }
 
@@ -137,6 +149,7 @@ public class Deck {
                 break;
             case INDEX:
                 placeCardAtIndex(card, place.getIndex());
+                break;
             case RANDOM:
                 addCardAndShuffle(card);
                 break;
@@ -158,7 +171,11 @@ public class Deck {
     }
 
     protected void placeCardAtIndex(Card card, int index) {
-        deck.add(index, card);
+        if (index >= 0 && index < deck.size()) {
+            deck.add(index, card);
+        } else {
+            logger.warning("Cannot place card at index : " + index +". The index is out of bounds");
+        }
     }
 
     public void addCardAndShuffle(Card card) {

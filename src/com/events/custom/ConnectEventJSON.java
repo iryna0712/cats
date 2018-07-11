@@ -1,4 +1,6 @@
-package com.events;
+package com.events.custom;
+
+import com.events.EventJSON;
 
 public class ConnectEventJSON extends EventJSON {
 

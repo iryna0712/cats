@@ -1,8 +1,8 @@
 package com.entities;
 
-import com.events.CardTypeDeserializer;
+import com.events.serializers.CardTypeDeserializer;
 import com.events.JSONConvertible;
-import com.events.JSONConvertibleSerializer;
+import com.events.serializers.JSONConvertibleSerializer;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 

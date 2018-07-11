@@ -1,5 +1,6 @@
-package com.events;
+package com.events.serializers;
 
+import com.events.JSONConvertible;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JavaType;

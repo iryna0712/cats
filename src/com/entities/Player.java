@@ -3,20 +3,28 @@ package com.entities;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.LongAdder;
 
 public class Player {
 
-    //private static LongAdder counter = new LongAdder();
+    public static final short INVALID_ID = -1;
     private String name;
-    private int num;
+    private short externalId;
     private int clientId;
 
     private boolean active;
     private List<Card> cards = new ArrayList<>();
 
+    private static LongAdder counter = new LongAdder();
+
+    //TODO: externalId is required
+    //TODO: check for max players and externalId value
     public Player(int clientId) {
         this.clientId = clientId;
-        //counter.increment();
+        this.active = true;
+
+        counter.increment();
+        externalId = counter.shortValue();
     }
 
     public void setName(String name) { this.name = name; }
@@ -31,12 +39,12 @@ public class Player {
         this.active = active;
     }
 
-    public int getNum() {
-        return num;
+    public short getExternalId() {
+        return externalId;
     }
 
-    public void setNum(int num) {
-        this.num = num;
+    public void setExternalId(short externalId) {
+        this.externalId = externalId;
     }
 
     public int getClientId() {
@@ -57,6 +65,24 @@ public class Player {
         return cards.remove(card);
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        return super.equals(obj);
+    }
+
+    public boolean hasCard(CardType cardType) {
+        return hasCard(cardType, 1);
+    }
+
+    public boolean hasCard(Card card) {
+        return hasCard(card, 1);
+    }
+
+    public boolean hasCard(CardType cardType, int amount) {
+        int frequency = Collections.frequency(cards, new Card(cardType));
+        return (frequency == amount);
+    }
+
     public boolean hasCard(Card card, int amount) {
         int frequency = Collections.frequency(cards, card);
         return (frequency == amount);
@@ -65,8 +91,8 @@ public class Player {
     @Override
     public String toString() {
         StringBuilder builder = new StringBuilder(255 );
-        builder.append("Player:\n" +
-                "name = " + name + "\n" +
+        builder.append("Player: " +
+                "name = " + name + " " +
                 "cards = {");
         for (Card card : cards) {
             //TODO: no comma for last element;

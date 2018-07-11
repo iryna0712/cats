@@ -2,11 +2,14 @@ package com.game;
 
 import com.entities.Card;
 import com.entities.CardType;
+import com.entities.Deck;
 import com.entities.Player;
-import com.events.AmountChangedJSON;
 import com.events.EventJSON;
-import com.events.PlayCardEventJSON;
-import com.events.ReceiveEventJSON;
+import com.events.custom.AmountChangedJSON;
+import com.events.custom.GiveAnyCardJSON;
+import com.events.custom.PlaceBombEventJSON;
+import com.events.custom.PlayCardEventJSON;
+import com.events.custom.ReceiveEventJSON;
 import com.game.StateManager.GameState;
 
 import java.util.logging.Logger;
@@ -14,7 +17,6 @@ import java.util.logging.Logger;
 public class EventDispatcher {
 
     //TODO: mayber we don't manage states here, just put the card on stack and stack is polled
-
     //TODO: maybe this class will boradcst events?
 
     private static final Logger logger = Logger.getLogger(EventDispatcher.class.getSimpleName());
@@ -24,6 +26,8 @@ public class EventDispatcher {
 
     //maybe should be in state manager
     private boolean isCoolDown;
+    private EventJSON pendingEvent;
+    private short pendingPlayer = Player.INVALID_ID;
 
     //TODO: remake; game manager should not be set here?
     public EventDispatcher(GameManager gameManager, StateManager stateManager) {
@@ -31,11 +35,31 @@ public class EventDispatcher {
         this.stateManager = stateManager;
     }
 
+    private boolean isWaitingPlayer(Player player) {
+        return (player.getExternalId() == pendingPlayer);
+    }
+
+    //TODO: synchronized?
     public void dispatchEvent(final EventJSON event, Player player) {
         logger.info("Event received: " + event);
 
-        if (player.getNum() != stateManager.getTurn()) {
-            return;
+        if (stateManager.getTurn() != player.getExternalId()) {
+            boolean isRejectEvent = true;
+            if (stateManager.isTurnOpenToOtherPlayers()&& event.getType().equals(EventJSON.EventJSONType.PLAY)) {
+                PlayCardEventJSON playEventJSON = (PlayCardEventJSON)event;
+                //TODO: do we need to check whether it is a cooldown
+                if (playEventJSON.getCard().getType().equals(CardType.STOP)) {
+                    isRejectEvent = false;
+                }
+            }
+
+            if (isWaitingPlayer(player) && event.getType().equals(EventJSON.EventJSONType.PLAY)) {
+                isRejectEvent = false;
+            }
+
+            if (isRejectEvent) {
+                return;
+            }
         }
 
         //TODO: COOLDOWN also allowed for put cards?
@@ -43,7 +67,9 @@ public class EventDispatcher {
         //TODO: check whether right person is playing
         if (
                 !state.equals(GameState.WAITING_PLAYER) &&
-                !(state.equals(GameState.COOL_DOWN) && event.getEvent().equals(EventJSON.EventJSONType.PLAY))) {
+                !state.equals(GameState.WAITING_PLAYER_GIVE) &&
+                !(state.equals(GameState.COOL_DOWN) && event.getType().equals(EventJSON.EventJSONType.PLAY)) &&
+                !(state.equals(GameState.BOMB_RECEIVED) && event.getType().equals(EventJSON.EventJSONType.PLACE_BOMB))) {
             return;
         }
 
@@ -52,37 +78,65 @@ public class EventDispatcher {
             stateManager.switchTo(GameState.EVENT_RECEIVED);
         }
 
-
         //TODO: check whether card received from other player is not bomb, just for safety
         //TODO: check whether the state is waiting for event
         //TODO: fabrika po events
 
-        switch (event.getEvent()) {
+        switch (event.getType()) {
             case TAKE_FROM_DECK:
             {
-                Card card = gameManager.giveCardToPlayer(player.getNum());
-                EventJSON receiveEventJSON = new ReceiveEventJSON(card.getType());
-                gameManager.broadCastEventToPlayer(player, receiveEventJSON);
+                Card card = gameManager.giveCardToPlayer(player.getExternalId());
 
                 if (card.getType().equals(CardType.BOMB)) {
-                    stateManager.switchTo(GameState.BOMB_RECEIVED);
+                    Card shieldCard = Card.fromType(CardType.SHIELD);
+                    if (player.hasCard(CardType.SHIELD)) {
+                        gameManager.takeCardFromPlayer(player, shieldCard);
+                        gameManager.putCardToStack(shieldCard);
+
+                        //switch to bomb_received state and wait for bomb placement
+                        stateManager.switchTo(GameState.BOMB_RECEIVED);
+                    } else {
+                        //TODO: do we need to keep count in stack? probably not
+                        gameManager.putCardToStack(card);
+                        gameManager.setPlayerInactive(player.getExternalId());
+                        nextPlayer();
+                    }
                 } else {
-                    EventJSON amountChangedJSON = new AmountChangedJSON((short)player.getNum(), player.getCards().size());
+                    EventJSON receiveEventJSON = new ReceiveEventJSON(card.getType());
+                    gameManager.broadCastEventToPlayer(player, receiveEventJSON);
+
+                    EventJSON amountChangedJSON = new AmountChangedJSON(player.getExternalId(), player.getCards().size());
                     gameManager.broadCastEventToOtherPlayers(player, amountChangedJSON);
-                    //TODO: broadcast event num card changed
                     //if player finished turn, switch to other player
                     nextPlayer();
                 }
                 break;
             }
-            case PLAY: {
+            case PLAY:
+            {
                 PlayCardEventJSON playCardEventJSON = (PlayCardEventJSON) event;
-                CardType cardType = playCardEventJSON.getCard();
+                CardType cardType = playCardEventJSON.getCard().getType();
                 Card card = new Card(cardType);
+                if (isValidPlayCard(card)) {
+                    //TODO: check if the state is waiting player
+                    return;
+                }
+
+                if (stateManager.getCurrentState().equals(GameState.WAITING_PLAYER_GIVE)) {
+                    pendingPlayer = Player.INVALID_ID;
+
+                    short playerToGiveCardTo = stateManager.getTurn();
+                    ReceiveEventJSON receiveEventJSON = new ReceiveEventJSON(card);
+                    gameManager.broadCastEventToPlayer(playerToGiveCardTo, receiveEventJSON);
+
+                    stateManager.switchTo(GameState.WAITING_PLAYER);
+                }
+
+                //TODO: check whether it is a shield
 
                 boolean isCooldown1 = stateManager.getCurrentState().equals(GameState.COOL_DOWN);
                 if (!isCooldown1) {
-                    boolean result = gameManager.takeCardFromPlayer(player.getNum(), card);
+                    boolean result = gameManager.takeCardFromPlayer(player.getExternalId(), card);
                     if (!result) {
                         logger.severe(
                                 "Player " + player + " is trying to play card he doesn't have on hand!" +
@@ -100,7 +154,9 @@ public class EventDispatcher {
                 boolean isCooldown = stateManager.getCurrentState().equals(GameState.COOL_DOWN);
                 if (!isCooldown && CardType.isCardStoppable(card.getType())) {
                     stateManager.switchTo(GameState.COOL_DOWN);
+                    stateManager.rememberCurrentPlayerAndGiveControlToEveryone();
 
+                    pendingEvent = playCardEventJSON;
                     dispatchEvent(event, player);
 
                     //TODO: uncomment later
@@ -126,57 +182,78 @@ public class EventDispatcher {
                     //stateManager.switchTo(GameState.WAITING_PLAYER);
                 }
 
-                if (stateManager.getCurrentState().equals(GameState.BOMB_RECEIVED)) {
-//                    //TODO: check whether player has shield, do it automatically
-//                    if (card.getType().equals(CardType.SHIELD)) {
-//                        gameManager.putCardToStack(card);
-//                        Deck.Place place = event.getPlace();
-//                        //TODO:
-//                        gameManager.placeCardToDeck(new Card(CardType.BOMB), place);
-//                        //TODO: put bomb?
-//                        nextPlayer();
-//                    } else {
-//                        //TODO: send error
-//                    }
-                } else {
-                    if (card.getType().equals(CardType.RECEIVE_PLAYERS_CARD)) {
-                        stateManager.switchTo(GameState.WAITING_PLAYER_GIVE);
-                        //stateManager.toggleTurn();
-                        return;
-                    }
-                    if (CardType.isPairCard(card.getType())) {
-                        gameManager.putCardToStack(card);
-                        stateManager.switchTo(GameState.WAITING_PLAYER_PICK);
-                        return;
-                    }
-                    if (card.getType().equals(CardType.PREDICTION)) {
-                        gameManager.show3CardsToPlayer(player.getNum());
-                        //TODO: are we already in this state?
-                        stateManager.switchTo(GameState.WAITING_PLAYER);
-                        return;
-                    }
-                    if (card.getType().equals(CardType.SHUFFLE)) {
-                        gameManager.shuffleCards();
-                        //TODO: are we already in this state?
-                        stateManager.switchTo(GameState.WAITING_PLAYER);
-                    }
-                    if (card.getType().equals(CardType.SKIP_MOVE)) {
-                        nextPlayer();
-                    }
-                    //TODO: automatically change to WAITING_PLAYER upon certain cards
-                    if (card.getType().equals(CardType.ATTACK)) {
-                        if (stateManager.getCurrentState().equals(GameState.WAITING_PLAYER_DOUBLE_MOVE)) {
-                            nextPlayer(true);
-                            return;
-                        }
+                //TODO: turn officially = when player has to put cards and then take (accept when skip)
+                //not all other cases
+                //TODO:find more proper place
+                pendingEvent = null;
 
-                        stateManager.switchTo(GameState.WAITING_PLAYER_DOUBLE_MOVE);
-                        stateManager.toggleTurn();
+                if (card.getType().equals(CardType.RECEIVE_PLAYERS_CARD)) {
+                    stateManager.switchTo(GameState.WAITING_PLAYER_GIVE);
+
+                    pendingPlayer = playCardEventJSON.getId();
+                    GiveAnyCardJSON giveAnyCardJSON = new GiveAnyCardJSON(player.getExternalId());
+                    //stateManager.toggleTurn();
+                    gameManager.broadCastEventToPlayer(pendingPlayer, giveAnyCardJSON);
+                    return;
+                }
+                if (CardType.isPairCard(card.getType())) {
+                    gameManager.putCardToStack(card);
+                    stateManager.switchTo(GameState.WAITING_PLAYER_PICK);
+                    return;
+                }
+                if (card.getType().equals(CardType.PREDICTION)) {
+                    gameManager.show3CardsToPlayer(player.getExternalId());
+                    //TODO: are we already in this state?
+                    stateManager.switchTo(GameState.WAITING_PLAYER);
+                    return;
+                }
+                if (card.getType().equals(CardType.SHUFFLE)) {
+                    gameManager.shuffleCards();
+                    //TODO: are we already in this state?
+                    stateManager.switchTo(GameState.WAITING_PLAYER);
+                    return;
+                }
+                if (card.getType().equals(CardType.SKIP_MOVE)) {
+                    nextPlayer();
+                }
+                //TODO: automatically change to WAITING_PLAYER upon certain cards
+                if (card.getType().equals(CardType.ATTACK)) {
+                    if (stateManager.getCurrentState().equals(GameState.WAITING_PLAYER_DOUBLE_MOVE)) {
+                        nextPlayer(true);
+                        return;
                     }
+
+                    stateManager.switchTo(GameState.WAITING_PLAYER_DOUBLE_MOVE);
+                    stateManager.toggleTurn();
+                }
+                if (card.getType().equals(CardType.STOP)) {
+                    //TODO: player cannot place stop in his turn
+                    //gameManager.toggleStackCardActivity();
+                    PlayCardEventJSON pendingPlayCardEvent = (PlayCardEventJSON)pendingEvent;
+                    pendingPlayCardEvent.getCard().toggleActivity();
+                    //TODO: are we already in this state?
+                    stateManager.switchTo(GameState.WAITING_PLAYER);
+                    return;
                 }
                 break;
             }
             case PLACE_BOMB:
+            {
+                PlaceBombEventJSON placeBombEventJSON = (PlaceBombEventJSON)event;
+                boolean isClosed = placeBombEventJSON.isClosed();
+                Deck.Place place = placeBombEventJSON.getPlace();
+
+                if (place.equals(Deck.Place.INDEX)) {
+                    place.setIndex(placeBombEventJSON.getIndex());
+                }
+
+                gameManager.placeCardToDeck(Card.fromType(CardType.BOMB), place);
+                if (!isClosed) {
+                    gameManager.broadCastEventToOtherPlayers(player, event);
+                }
+                nextPlayer();
+                break;
+            }
 //            case GIVE_CARD:
 //            {
 //                gameManager.giveCardToPlayer(stateManager.getTurn(), event.getCard());
@@ -197,6 +274,10 @@ public class EventDispatcher {
                 break;
 
         }
+    }
+
+    private boolean isValidPlayCard(Card card) {
+        return !card.isActive() || card.getType().equals(CardType.BOMB);
     }
 
     private void nextPlayer() {

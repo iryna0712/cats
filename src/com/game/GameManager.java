@@ -3,14 +3,16 @@ package com.game;
 import com.entities.Card;
 import com.entities.CardType;
 import com.entities.Deck;
-import com.entities.MockDeckFiller;
 import com.entities.Player;
-import com.events.ConnectEventJSON;
 import com.events.EventJSON;
-import com.events.NextTurnEventJSON;
-import com.events.ShowCardsEventJSON;
-import com.events.StartEventJSON;
+import com.events.custom.AmountChangedJSON;
+import com.events.custom.ConnectEventJSON;
+import com.events.custom.GameOverEvent;
+import com.events.custom.NextTurnEventJSON;
+import com.events.custom.ShowCardsEventJSON;
+import com.events.custom.StartEventJSON;
 import com.interfaces.DeckFiller;
+import com.mock.BombDeckFiller;
 import com.sun.istack.internal.Nullable;
 
 import java.util.ArrayList;
@@ -83,7 +85,7 @@ public class GameManager implements ConnectionManager.IConnectionListener, Clien
         synchronized (this) {
             clients.put(clientId, client);
             players.add(newPlayer);
-            newPlayer.setNum(players.indexOf(newPlayer) + 1);
+            //newPlayer.setExternalId((short)(players.indexOf(newPlayer) + 1));
         }
 
         numPlayers.incrementAndGet();
@@ -104,7 +106,7 @@ public class GameManager implements ConnectionManager.IConnectionListener, Clien
         isGameInProcess = true;
 
         //create, fill deck and shuffle it
-        DeckFiller filler = new MockDeckFiller();
+        DeckFiller filler = new BombDeckFiller();
         //DeckFiller filler = new DeckFillerImpl();
         deck = new Deck(filler);
 
@@ -127,7 +129,7 @@ public class GameManager implements ConnectionManager.IConnectionListener, Clien
     public void waitWhilePlayersHandshake() {
         boolean allPlayersHandshaked = false;
         while (!allPlayersHandshaked) {
-            logger.info("Player have not handshaked with server yet");
+            logger.info("Player has not handshaked with server yet");
 
             boolean allNamesAreDefined = true;
             for (Player player : players) {
@@ -150,13 +152,20 @@ public class GameManager implements ConnectionManager.IConnectionListener, Clien
 
         Client client1 = clients.get(players.get(0).getClientId());
         client1.receiveMessage("{\"event\":\"takeFromDeck\"}");
+        client1.receiveMessage("{\"event\":\"placeBomb\", \"isClosed\":true, \"place\":\"top\"}");
         Client client2 = clients.get(players.get(1).getClientId());
-        client2.receiveMessage("{\"event\":\"play\",\"card\":\"predict\"}");
+        //client2.receiveMessage("{\"event\":\"play\",\"card\":\"predict\"}");
         client2.receiveMessage("{\"event\":\"takeFromDeck\"}");
+        client2.receiveMessage("{\"event\":\"placeBomb\", \"isClosed\":true, \"place\":\"top\"}");
 
         Client client3 = clients.get(players.get(2).getClientId());
-        client3.receiveMessage("{\"event\":\"play\",\"card\":\"shuffle\"}");
+        //client3.receiveMessage("{\"event\":\"play\",\"card\":\"shuffle\"}");
         client3.receiveMessage("{\"event\":\"takeFromDeck\"}");
+        client3.receiveMessage("{\"event\":\"placeBomb\", \"isClosed\":false, \"place\":\"index\",\"index\":0}");
+
+        client1.receiveMessage("{\"event\":\"takeFromDeck\"}");
+        client2.receiveMessage("{\"event\":\"takeFromDeck\"}");
+
 
     }
 
@@ -166,7 +175,7 @@ public class GameManager implements ConnectionManager.IConnectionListener, Clien
         if (clients.containsKey(client.getUniqueId())) {
             EventJSON parsedEvent = ExternalEventBuilder.parseEvent(str);
 
-            switch (parsedEvent.getEvent()) {
+            switch (parsedEvent.getType()) {
                 case HANDSHAKE:
                 {
                     ConnectEventJSON connectEventJSON = (ConnectEventJSON) parsedEvent;
@@ -210,15 +219,11 @@ public class GameManager implements ConnectionManager.IConnectionListener, Clien
 
             StartEventJSON event = new StartEventJSON(deck.getSize());
             event.setHand(player.getCards());
-            event.setPlayers(otherPlayers);
+            event.setTable(otherPlayers);
             psychic.send(client, event);
         }
     }
     //TODO: fabric of events?
-    public void sendStartEvent(int playerId) {
-        Player playerToSendEventTo = getPlayer(playerId);
-        sendStartEvent(playerToSendEventTo);
-    }
 
     @Override
     public void onTurnChanged(int turn) {
@@ -235,20 +240,6 @@ public class GameManager implements ConnectionManager.IConnectionListener, Clien
             psychic.send(client, event);
         }
     }
-
-
-//    public void putCardEvent(int numPlayer, CardType type) {
-//        Event event = new Event(players.get(numPlayer - 1), Event.EventType.PUT_CARD);
-//        event.setCard(new Card(type));
-//
-//        getEventDispatcher().dispatchEvent(event);
-//    }
-//
-//    public void takeCardEvent(int numPlayer) {
-//        Event event = new Event(getPlayer(numPlayer), Event.EventType.TAKE_CARD_FROM_DECK);
-//        //event.setCard();
-//        getEventDispatcher().dispatchEvent(event);
-//    }
 
     private void checkCardFromDeckAndGiveToPlayer(Player player) {
         assert (deck != null);
@@ -269,6 +260,7 @@ public class GameManager implements ConnectionManager.IConnectionListener, Clien
         }
     }
 
+    //TODO: maybe rename to open card, because it might be confsed with "deck"
     public void putCardToStack(Card card) {
         stack = card;
     }
@@ -280,10 +272,46 @@ public class GameManager implements ConnectionManager.IConnectionListener, Clien
         Player player = getPlayer(playerId);
         if (player != null) {
             player.setActive(false);
+
+            AmountChangedJSON amountChangedJSON = new AmountChangedJSON(player.getExternalId(), 0);
+            broadCastEventToOtherPlayers(player, amountChangedJSON);
         }
 
-        //TODO: check whether >1 active players
-        //to state GAME_OVER
+        boolean isGameOver = (getNumberOfActivePlayers() > 1);
+
+        //TOD: parse game_Ver event in EVentDispatcher
+        if (isGameOver) {
+            stateManager.switchTo(StateManager.GameState.GAME_OVER);
+            Player winner = getActivePlayer();
+            if (winner != null) {
+                broadCastEventToAllPlayers(new GameOverEvent(winner.getExternalId()));
+            }
+        }
+    }
+
+    @Nullable
+    public Player getActivePlayer() {
+        Player activePlayer = null;
+
+        for (Player player : players) {
+            if (player.isActive()) {
+                activePlayer = player;
+                break;
+            }
+        }
+        return activePlayer;
+    }
+
+    public int getNumberOfActivePlayers() {
+        short numActivePlayers = 0;
+
+        for (Player player : players) {
+            if (player.isActive()) {
+                ++numActivePlayers;
+            }
+        }
+
+        return numActivePlayers;
     }
 
     private StateManager stateManager;
@@ -302,17 +330,26 @@ public class GameManager implements ConnectionManager.IConnectionListener, Clien
 //
 //    }
 
+    //TODO: add Nullable, NotNull where possible
+
+    public boolean isTopCardBomb() {
+        return deck.popTopCard().getType().equals(CardType.BOMB);
+    }
+
+    //TODO: rename to include bomb special case
     @Nullable
     public Card giveCardToPlayer(int playerId) {
+        //TODO: add asserts where needed
         assert (deck != null);
         assert (playerId > 0);
-
         Card card = null;
 
         Player player = getPlayer(playerId);
         if (player != null) {
             card = deck.popTopCard();
-            giveCardToPlayer(player, card);
+            if (!card.getType().equals(CardType.BOMB)) {
+                giveCardToPlayer(player, card);
+            }
         }
         return card;
     }
@@ -328,8 +365,15 @@ public class GameManager implements ConnectionManager.IConnectionListener, Clien
         }
     }
 
-    public void  broadCastEventToPlayer(Player player, EventJSON event) {
-        psychic.send(clients.get(player.getClientId()), event);
+    public void broadCastEventToPlayer(@Nullable Player player, EventJSON event) {
+        if (player != null) {
+            psychic.send(clients.get(player.getClientId()), event);
+        }
+    }
+
+    public void broadCastEventToPlayer(short id, EventJSON event) {
+        Player player = getPlayer(id);
+        broadCastEventToPlayer(player, event);
     }
 
     public void broadCastEventToOtherPlayers(Player player, EventJSON event) {
@@ -349,6 +393,12 @@ public class GameManager implements ConnectionManager.IConnectionListener, Clien
 
     public boolean takeCardFromPlayer(int playerId, Card card) {
         Player player = getPlayer(playerId);
+        boolean result = takeCardFromPlayer(player, card);
+        return result;
+    }
+
+    //TODO: throw exeption if player doesnt have card
+    public boolean takeCardFromPlayer(@Nullable Player player, Card card) {
         boolean result = false;
 
         if (player != null) {
@@ -362,7 +412,12 @@ public class GameManager implements ConnectionManager.IConnectionListener, Clien
                 }
             }
         }
+
         return result;
+    }
+
+    public boolean isGameInProcess() {
+        return isGameInProcess;
     }
 
     public void show3CardsToPlayer(int playerId) {
@@ -383,28 +438,11 @@ public class GameManager implements ConnectionManager.IConnectionListener, Clien
         }
     }
 
-    //TODO: remove getEventdispatcher and setEventDispatcher
-    public EventDispatcher getEventDispatcher() {
-        return eventDispatcher;
-    }
-
-    public void setEventDispatcher(EventDispatcher eventDispatcher) {
-        this.eventDispatcher = eventDispatcher;
-    }
-
     //cards that player has is managed on server-side for safety
-    private void giveCardToPlayer(Player player, Card card) {
-        player.receiveCard(card);
-
-        //move this to communicator
-//        ObjectMapper mapper = new ObjectMapper();
-//        try {
-//            Message message = new Message(Message.CARD, mapper.writeValueAsString(card));
-//            System.out.print("to player : " + player.getId() + " ");
-//            clients.getOrDefault(player.getId(), sampleClient).sendMessage(message);
-//        } catch (JsonProcessingException e) {
-//            e.printStackTrace();
-//        }
+    private void giveCardToPlayer(@Nullable Player player, Card card) {
+        if (player != null) {
+            player.receiveCard(card);
+        }
     }
 
     //TODO: mayber game manager is listener

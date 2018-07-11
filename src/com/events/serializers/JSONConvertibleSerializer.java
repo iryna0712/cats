@@ -1,5 +1,6 @@
-package com.events;
+package com.events.serializers;
 
+import com.events.JSONConvertible;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;

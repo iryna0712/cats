@@ -1,6 +1,6 @@
-package com.events;
+package com.events.serializers;
 
-import com.entities.CardType;
+import com.events.EventJSON;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -8,22 +8,22 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 
 import java.io.IOException;
 
-public class CardTypeDeserializer  extends StdDeserializer<CardType> {
+public class EventJSONTypeDeserializer extends StdDeserializer<EventJSON.EventJSONType> {
 
-    public CardTypeDeserializer() {
+    public EventJSONTypeDeserializer() {
         this(null);
     }
 
-    public CardTypeDeserializer(Class<?> vc) {
+    public EventJSONTypeDeserializer(Class<?> vc) {
         super(vc);
     }
 
     @Override
-    public CardType deserialize(JsonParser jsonParser, DeserializationContext deserializationContext)
+    public EventJSON.EventJSONType deserialize(JsonParser jsonParser, DeserializationContext deserializationContext)
             throws IOException {
         JsonNode node = jsonParser.getCodec().readTree(jsonParser);
         String value = node.textValue();
 
-        return CardType.fromJSONString(value);
+        return EventJSON.EventJSONType.fromJSONString(value);
     }
 }

@@ -1,18 +1,19 @@
-package com.events;
+package com.events.custom;
 
-import com.entities.CardType;
+import com.entities.Card;
+import com.events.EventJSON;
 
 import java.io.Serializable;
 
 public class ReceiveEventJSON extends EventJSON implements Serializable {
-    private CardType card;
+    private Card card;
 
-    public ReceiveEventJSON(CardType card) {
-        super(EventJSONType.RECEIVE);
+    public ReceiveEventJSON(Card card) {
+        super(EventJSON.EventJSONType.RECEIVE);
         this.card = card;
     }
 
-    public CardType getCard() {
+    public Card getCard() {
         return card;
     }
 //

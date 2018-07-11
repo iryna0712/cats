@@ -1,10 +1,10 @@
 package com.game;
 
-import com.events.ConnectEventJSON;
+import com.events.custom.ConnectEventJSON;
 import com.events.EventJSON;
-import com.events.PlaceBombEventJSON;
-import com.events.PlayCardEventJSON;
-import com.events.TakeFromDeckEventJSON;
+import com.events.custom.PlaceBombEventJSON;
+import com.events.custom.PlayCardEventJSON;
+import com.events.custom.TakeFromDeckEventJSON;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;

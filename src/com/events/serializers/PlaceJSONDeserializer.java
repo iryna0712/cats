@@ -1,5 +1,6 @@
-package com.events;
+package com.events.serializers;
 
+import com.entities.Deck;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -7,22 +8,23 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 
 import java.io.IOException;
 
-public class EventJSONTypeDeserializer extends StdDeserializer<EventJSON.EventJSONType> {
+public class PlaceJSONDeserializer extends StdDeserializer<Deck.Place> {
 
-    public EventJSONTypeDeserializer() {
+    public PlaceJSONDeserializer() {
         this(null);
     }
 
-    public EventJSONTypeDeserializer(Class<?> vc) {
+    public PlaceJSONDeserializer(Class<?> vc) {
         super(vc);
     }
 
     @Override
-    public EventJSON.EventJSONType deserialize(JsonParser jsonParser, DeserializationContext deserializationContext)
+    public Deck.Place deserialize(JsonParser jsonParser, DeserializationContext deserializationContext)
             throws IOException {
         JsonNode node = jsonParser.getCodec().readTree(jsonParser);
         String value = node.textValue();
 
-        return EventJSON.EventJSONType.fromJSONString(value);
+        return Deck.Place.fromJSONString(value);
     }
 }
+
