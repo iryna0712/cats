@@ -11,17 +11,17 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 public enum CardType implements JSONConvertible {
     BOMB("bomb"),
     SHIELD("defuse"),
-    PREDICTION("predict"),
-    RECEIVE_PLAYERS_CARD("please"),
+    FUTURE("predict"),
+    PLEASE("please"),
     ATTACK("attack"),
-    SKIP_MOVE("skip"),
+    SKIP("skip"),
     SHUFFLE("shuffle"),
     STOP("stop"),
     //below only paired cards
     SHAWERMA("shawerma"),
     WATERMELON("watermelon"),
     CUCUMBER("cucumber"),
-    RAINBOW_CAT("rainbow"),
+    RAINBOW("rainbow"),
     LUMBERJACK("lumberjack");
 
     CardType(String jsonString) {
@@ -32,12 +32,13 @@ public enum CardType implements JSONConvertible {
 
     public static boolean isPairCard(CardType type) {
         return type.equals(SHAWERMA) || type.equals(WATERMELON) ||
-                type.equals(CUCUMBER) || type.equals(RAINBOW_CAT) ||
+                type.equals(CUCUMBER) || type.equals(RAINBOW) ||
                 type.equals(LUMBERJACK);
     }
 
     public static boolean isCardStoppable(CardType type) {
-        return type != BOMB && type != SHIELD;
+        //TODO: this is TEMPORARY!!!!
+        return type != BOMB && type != SHIELD && type != SKIP && type != CUCUMBER;
     }
 
     public String toJSONString() {

@@ -1,16 +1,21 @@
 package com.entities;
 
+import com.events.serializers.CardSerializer;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import java.io.Serializable;
 
+//TODO: try @JsonValue to serialize via one method
+//TODO: use @JsonAutoDetect
+@JsonSerialize(using = CardSerializer.class)
 public class Card implements Comparable<Card>, Serializable {
 
     @JsonProperty(value = "card")
     private CardType type;
     @JsonIgnore
-    private boolean isActive;
+    private boolean isActive = true;
 
     //default constructor for JSON
     public Card() {}

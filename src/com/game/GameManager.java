@@ -1,5 +1,6 @@
 package com.game;
 
+import com.GameSecurityManager;
 import com.entities.Card;
 import com.entities.CardType;
 import com.entities.Deck;
@@ -12,7 +13,7 @@ import com.events.custom.NextTurnEventJSON;
 import com.events.custom.ShowCardsEventJSON;
 import com.events.custom.StartEventJSON;
 import com.interfaces.DeckFiller;
-import com.mock.BombDeckFiller;
+import com.mock.MockDeckFiller;
 import com.sun.istack.internal.Nullable;
 
 import java.util.ArrayList;
@@ -105,8 +106,11 @@ public class GameManager implements ConnectionManager.IConnectionListener, Clien
     public void onAllPlayersConnected() {
         isGameInProcess = true;
 
+        psychic.setPlayers(players);
+        psychic.setClients(clients);
+
         //create, fill deck and shuffle it
-        DeckFiller filler = new BombDeckFiller();
+        DeckFiller filler = new MockDeckFiller();
         //DeckFiller filler = new DeckFillerImpl();
         deck = new Deck(filler);
 
@@ -129,7 +133,7 @@ public class GameManager implements ConnectionManager.IConnectionListener, Clien
     public void waitWhilePlayersHandshake() {
         boolean allPlayersHandshaked = false;
         while (!allPlayersHandshaked) {
-            logger.info("Player has not handshaked with server yet");
+            logger.info("Waiting for players...");
 
             boolean allNamesAreDefined = true;
             for (Player player : players) {
@@ -148,34 +152,54 @@ public class GameManager implements ConnectionManager.IConnectionListener, Clien
             sendStartEvent(player);
         }
 
+        //TODO: тесты с receiveMessage
         stateManager.switchTo(StateManager.GameState.WAITING_PLAYER);
 
         Client client1 = clients.get(players.get(0).getClientId());
+        Client client2 = clients.get(players.get(1).getClientId());
+        Client client3 = clients.get(players.get(2).getClientId());
+
+        client1.receiveMessage("{\"event\":\"play\",\"card\":\"please\", \"id\":\"03\"}");
+        //not his turn
+        client2.receiveMessage("{\"event\":\"play\",\"card\":\"shuffle\"}");
+        //not allowed
+        client3.receiveMessage("{\"event\":\"play\",\"card\":\"bomb\"}");
+        //does not have
+        client3.receiveMessage("{\"event\":\"play\",\"card\":\"shuffle\"}");
+        //should be ok
+        client3.receiveMessage("{\"event\":\"play\",\"card\":\"cucumber\"}");
+        client3.receiveMessage("{\"event\":\"play\",\"card\":\"cucumber\"}");
+        client3.receiveMessage("{\"event\":\"play\",\"card\":\"cucumber\"}");
+        client3.receiveMessage("{\"event\":\"play\",\"card\":\"cucumber\"}");
+
         client1.receiveMessage("{\"event\":\"takeFromDeck\"}");
         client1.receiveMessage("{\"event\":\"placeBomb\", \"isClosed\":true, \"place\":\"top\"}");
-        Client client2 = clients.get(players.get(1).getClientId());
+
         //client2.receiveMessage("{\"event\":\"play\",\"card\":\"predict\"}");
-        client2.receiveMessage("{\"event\":\"takeFromDeck\"}");
-        client2.receiveMessage("{\"event\":\"placeBomb\", \"isClosed\":true, \"place\":\"top\"}");
+        client2.receiveMessage("{\"event\":\"play\",\"card\":\"skip\"}");
+        //client2.receiveMessage("{\"event\":\"takeFromDeck\"}");
+        //client2.receiveMessage("{\"event\":\"placeBomb\", \"isClosed\":true, \"place\":\"top\"}");
 
-        Client client3 = clients.get(players.get(2).getClientId());
+        client3.receiveMessage("{\"event\":\"play\",\"card\":\"skip\"}");
         //client3.receiveMessage("{\"event\":\"play\",\"card\":\"shuffle\"}");
-        client3.receiveMessage("{\"event\":\"takeFromDeck\"}");
-        client3.receiveMessage("{\"event\":\"placeBomb\", \"isClosed\":false, \"place\":\"index\",\"index\":0}");
+        //client3.receiveMessage("{\"event\":\"takeFromDeck\"}");
+        //client3.receiveMessage("{\"event\":\"placeBomb\", \"isClosed\":false, \"place\":\"index\",\"index\":0}");
 
-        client1.receiveMessage("{\"event\":\"takeFromDeck\"}");
+        client1.receiveMessage("{\"event\":\"play\",\"card\":\"cucumber\", \"id\":\"02\"}");
         client2.receiveMessage("{\"event\":\"takeFromDeck\"}");
 
 
     }
 
     @Override
-    public void receive(Client client, String str) {
+    public synchronized void receive(Client client, String message) {
+        logger.info("RECEIVE from " + getPlayer(client) + "\nMessage: " + message);
+
         //check if such client exists
         if (clients.containsKey(client.getUniqueId())) {
-            EventJSON parsedEvent = ExternalEventBuilder.parseEvent(str);
+            EventJSON parsedEvent = ExternalEventBuilder.parseEvent(message);
 
-            switch (parsedEvent.getType()) {
+            switch (parsedEvent.getEvent()) {
                 case HANDSHAKE:
                 {
                     ConnectEventJSON connectEventJSON = (ConnectEventJSON) parsedEvent;
@@ -192,14 +216,14 @@ public class GameManager implements ConnectionManager.IConnectionListener, Clien
                     if (player != null) {
                         eventDispatcher.dispatchEvent(parsedEvent, player);
                     } else {
-                        //TODO: implement SecurityManager that will kick players or clients
+                        //TODO: implement GameSecurityManager that will kick players or clients
                         logger.severe("Received message from client, that is not in list of clients." +
                                 "\nClient: " + client);
                     }
                     break;
                 }
                 default:
-                    logger.severe("Client " + client + " sent and invalid event. Message: " + str);
+                    logger.severe("Client " + client + " sent and invalid event. Message: " + message);
                     break;
             }
         }
@@ -317,19 +341,6 @@ public class GameManager implements ConnectionManager.IConnectionListener, Clien
     private StateManager stateManager;
     private EventDispatcher eventDispatcher;
 
-//    public void startCooldown() {
-//        TimerTask timerTask = new TimerTask() {
-//            @Override
-//            public void run() {
-//                stateManager.switchTo(StateManager.);
-//
-//            }
-//        }
-//
-//        Timer timer = new Timer()
-//
-//    }
-
     //TODO: add Nullable, NotNull where possible
 
     public boolean isTopCardBomb() {
@@ -338,7 +349,7 @@ public class GameManager implements ConnectionManager.IConnectionListener, Clien
 
     //TODO: rename to include bomb special case
     @Nullable
-    public Card giveCardToPlayer(int playerId) {
+    public Card giveCardFromDeckToPlayer(int playerId) {
         //TODO: add asserts where needed
         assert (deck != null);
         assert (playerId > 0);
@@ -391,18 +402,25 @@ public class GameManager implements ConnectionManager.IConnectionListener, Clien
         }
     }
 
-    public boolean takeCardFromPlayer(int playerId, Card card) {
+    public void kickPlayer(Player player) {
+        if (player != null) {
+            Client client = clients.get(player.getClientId());
+            GameSecurityManager.getInstance().kickClient(client);
+        }
+    }
+
+    public boolean takeCardFromPlayer(int playerId, Card card, int amount) {
         Player player = getPlayer(playerId);
-        boolean result = takeCardFromPlayer(player, card);
+        boolean result = takeCardFromPlayer(player, card, amount);
         return result;
     }
 
     //TODO: throw exeption if player doesnt have card
-    public boolean takeCardFromPlayer(@Nullable Player player, Card card) {
+    public boolean takeCardFromPlayer(@Nullable Player player, Card card, int amount) {
         boolean result = false;
 
         if (player != null) {
-            int amountToRemove = CardType.isPairCard(card.getType()) ? 2 : 1;
+            int amountToRemove = amount; //CardType.isPairCard(card.getEvent()) ? 2 : 1;
             result = player.hasCard(card, amountToRemove);
             //TODO: remake this pretty ugly thing! :)
             if (result) {

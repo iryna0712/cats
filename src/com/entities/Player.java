@@ -1,20 +1,32 @@
 package com.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.LongAdder;
 
-public class Player {
+public class Player implements Serializable {
 
     public static final short INVALID_ID = -1;
+    @JsonProperty
     private String name;
+    @JsonProperty(value="id")
     private short externalId;
-    private int clientId;
+    @JsonProperty
+    private int numOfCards;
 
-    private boolean active;
+    @JsonIgnore
     private List<Card> cards = new ArrayList<>();
+    @JsonIgnore
+    private int clientId;
+    @JsonIgnore
+    private boolean active;
 
+    @JsonIgnore
     private static LongAdder counter = new LongAdder();
 
     //TODO: externalId is required
@@ -25,6 +37,15 @@ public class Player {
 
         counter.increment();
         externalId = counter.shortValue();
+    }
+
+    public void setNumOfCards(int numOfCards) {
+        this.numOfCards = numOfCards;
+    }
+
+    public int getNumOfCards() {
+        numOfCards = cards.size();
+        return numOfCards;
     }
 
     public void setName(String name) { this.name = name; }

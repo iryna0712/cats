@@ -2,13 +2,14 @@ package com.events;
 
 import com.events.serializers.EventJSONTypeDeserializer;
 import com.events.serializers.JSONConvertibleSerializer;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import java.io.Serializable;
 
 public class EventJSON implements Serializable {
+
+    private EventJSONType event;
 
     @JsonSerialize(using = JSONConvertibleSerializer.class)
     @JsonDeserialize(using = EventJSONTypeDeserializer.class)
@@ -56,24 +57,21 @@ public class EventJSON implements Serializable {
         }
     }
 
-    @JsonProperty(value="event")
-    private EventJSONType type;
-
     //default constructor for deserialization
     public EventJSON() {}
     public EventJSON(EventJSONType event) {
-        this.type = event;
+        this.event = event;
     }
 
-    public EventJSONType getType() { return type; }
-    public void setType(EventJSONType type) {
-        this.type = type;
+    public EventJSONType getEvent() { return event; }
+    public void setEvent(EventJSONType type) {
+        this.event = type;
     }
 
     @Override
     public String toString() {
         return "EventJSON{" +
-                "event=" + type +
+                "event=" + event +
                 '}';
     }
 }

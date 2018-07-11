@@ -35,6 +35,8 @@ public class Client extends Thread {
     }
 
     public Client(Socket socket) throws IOException {
+        //TODO: check this
+        socket.setTcpNoDelay(true);
         System.out.println(socket);
         this.socket = socket;
         in = new BufferedReader(
@@ -82,7 +84,7 @@ public class Client extends Thread {
     }
 
     public void sendMessage(@Nullable String message) {
-        logger.info("To client: " + this + "\nSend message: " + message);
+        //logger.info("To client: " + this + "\nSend message: " + message);
 
         if (out != null && message != null) {
             out.println(message);
@@ -91,16 +93,25 @@ public class Client extends Thread {
 
         } else {
             //TODO: log error
-         }
+        }
+
     }
 
     //TODO: public only for testing, make private again
     public void receiveMessage(String message) {
-        logger.info("From client: " + this + "\nReceived message: " + message);
+        //logger.info("From client: " + this + "\nReceived message: " + message);
 
         if (streamListener != null) {
             streamListener.receive(this, message);
         }
+    }
+
+    public void disconnect(boolean isForced) throws IOException {
+        logger.info("Disconnecting client " + this + " isForced = " + isForced);
+        if (socket != null) {
+            socket.close();
+        }
+
     }
 
     @Override
